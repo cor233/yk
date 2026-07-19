@@ -58,7 +58,7 @@ jobs:
         run: |
           gh release view "${{ steps.tag.outputs.tag }}" --repo "${{ github.repository }}" --json body -q .body > package/release_notes.txt
 
-      - name: 打包为 ZIP（静默）
+      - name: 打包为 ZIP
         run: |
           cd package
           zip -qr "../${{ steps.tag.outputs.tag }}.zip" .
