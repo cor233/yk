@@ -1,0 +1,68 @@
+name: Package Release Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '输入版本号（例如 v1.2.3，留空或输入 latest 则自动选最新）'
+        required: false
+        default: 'latest'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install GitHub CLI
+        run: |
+          type gh >/dev/null 2>&1 || sudo apt-get install gh -y
+
+      - name: List all releases for reference
+        run: |
+          echo "📋 可用版本列表："
+          gh release list --repo "${{ github.repository }}" --limit 100
+
+      - name: Determine target tag
+        id: tag
+        run: |
+          input="${{ github.event.inputs.release_tag }}"
+          if [ -z "$input" ] || [ "$input" = "latest" ]; then
+            tag=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName -q '.[0].tagName')
+          else
+            tag="$input"
+          fi
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "🎯 目标版本：$tag"
+
+      - name: Download assets
+        run: |
+          mkdir -p package
+          gh release download "${{ steps.tag.outputs.tag }}" -D package --repo "${{ github.repository }}"
+
+      - name: Extract release notes
+        run: |
+          gh release view "${{ steps.tag.outputs.tag }}" --json body -q .body > package/release_notes.txt
+
+      - name: Create zip package
+        run: |
+          cd package
+          zip -r "../${{ steps.tag.outputs.tag }}.zip" .
+          cd ..
+
+      - name: Upload package to release
+        run: |
+          gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.tag }}.zip" --clobber
+
+      - name: Generate accelerated download link
+        id: url
+        run: |
+          asset_url=$(gh release view "${{ steps.tag.outputs.tag }}" --json assets -q '.assets[] | select(.name=="${{ steps.tag.outputs.tag }}.zip") | .browser_download_url')
+          echo "prefixed_url=https://gh.xxooo.cf/${asset_url#https://}" >> $GITHUB_OUTPUT
+
+      - name: Show download link
+        run: |
+          echo "🚀 加速下载链接："
+          echo "${{ steps.url.outputs.prefixed_url }}"
