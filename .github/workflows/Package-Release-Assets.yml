@@ -55,7 +55,7 @@ jobs:
 
       - name: 提取发布说明
         run: |
-          gh release view "${{ steps.tag.outputs.tag }}" --json body -q .body > package/release_notes.txt
+          gh release view "${{ steps.tag.outputs.tag }}" --repo "${{ github.repository }}" --json body -q .body > package/release_notes.txt
 
       - name: 打包为 ZIP
         run: |
@@ -65,12 +65,12 @@ jobs:
 
       - name: 上传包到 Release
         run: |
-          gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.tag }}.zip" --clobber
+          gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.tag }}.zip" --repo "${{ github.repository }}" --clobber
 
       - name: 生成加速下载链接
         id: url
         run: |
-          asset_url=$(gh release view "${{ steps.tag.outputs.tag }}" --json assets -q '.assets[] | select(.name=="${{ steps.tag.outputs.tag }}.zip") | .browser_download_url')
+          asset_url=$(gh release view "${{ steps.tag.outputs.tag }}" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name=="${{ steps.tag.outputs.tag }}.zip") | .browser_download_url')
           echo "prefixed_url=https://gh.xxooo.cf/${asset_url#https://}" >> $GITHUB_OUTPUT
 
       - name: 显示下载链接
