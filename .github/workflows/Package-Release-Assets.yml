@@ -12,20 +12,23 @@ on:
 permissions:
   contents: write
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - name: Install GitHub CLI
+      - name: 安装 GitHub CLI
         run: |
           type gh >/dev/null 2>&1 || sudo apt-get install gh -y
 
-      - name: List all releases for reference
+      - name: 列出所有可用版本
         run: |
           echo "📋 可用版本列表："
           gh release list --repo "${{ github.repository }}" --limit 100
 
-      - name: Determine target tag
+      - name: 确定目标版本
         id: tag
         run: |
           input="${{ github.event.inputs.release_tag }}"
@@ -33,36 +36,44 @@ jobs:
             tag=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName -q '.[0].tagName')
           else
             tag="$input"
+            if ! gh release view "$tag" --repo "${{ github.repository }}" &>/dev/null; then
+              if [[ "$tag" =~ ^[vV] ]]; then
+                new_tag=$(echo "$tag" | sed 's/^v/V/;s/^V/v/')
+                if gh release view "$new_tag" --repo "${{ github.repository }}" &>/dev/null; then
+                  tag="$new_tag"
+                fi
+              fi
+            fi
           fi
           echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "🎯 目标版本：$tag"
 
-      - name: Download assets
+      - name: 下载附件
         run: |
           mkdir -p package
           gh release download "${{ steps.tag.outputs.tag }}" -D package --repo "${{ github.repository }}"
 
-      - name: Extract release notes
+      - name: 提取发布说明
         run: |
           gh release view "${{ steps.tag.outputs.tag }}" --json body -q .body > package/release_notes.txt
 
-      - name: Create zip package
+      - name: 打包为 ZIP
         run: |
           cd package
           zip -r "../${{ steps.tag.outputs.tag }}.zip" .
           cd ..
 
-      - name: Upload package to release
+      - name: 上传包到 Release
         run: |
           gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.tag }}.zip" --clobber
 
-      - name: Generate accelerated download link
+      - name: 生成加速下载链接
         id: url
         run: |
           asset_url=$(gh release view "${{ steps.tag.outputs.tag }}" --json assets -q '.assets[] | select(.name=="${{ steps.tag.outputs.tag }}.zip") | .browser_download_url')
           echo "prefixed_url=https://gh.xxooo.cf/${asset_url#https://}" >> $GITHUB_OUTPUT
 
-      - name: Show download link
+      - name: 显示下载链接
         run: |
           echo "🚀 加速下载链接："
           echo "${{ steps.url.outputs.prefixed_url }}"
