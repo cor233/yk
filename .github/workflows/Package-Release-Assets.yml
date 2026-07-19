@@ -10,7 +10,8 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
+  actions: write
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,16 +64,21 @@ jobs:
           zip -qr "../${{ steps.tag.outputs.tag }}.zip" .
           cd ..
 
-      - name: 上传包到 Release
-        run: |
-          gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.tag }}.zip" --repo "${{ github.repository }}" --clobber
+      - name: 上传为临时构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: ${{ steps.tag.outputs.tag }}.zip
+          retention-days: 90
 
-      - name: 生成加速下载链接
-        id: url
+      - name: 获取构件下载链接
+        id: artifact_url
         run: |
-          echo "prefixed_url=https://gh.xxooo.cf/github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.tag }}.zip" >> $GITHUB_OUTPUT
+          artifact_url=$(gh api -X GET /repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --jq '.artifacts[] | select(.name=="release-package") | .archive_download_url')
+          echo "artifact_url=$artifact_url" >> $GITHUB_OUTPUT
+          echo "prefixed_url=https://gh.xxooo.cf/${artifact_url#https://}" >> $GITHUB_OUTPUT
 
-      - name: 显示下载链接
+      - name: 显示加速下载链接
         run: |
-          echo "🚀 加速下载链接："
-          echo "${{ steps.url.outputs.prefixed_url }}"
+          echo "🚀 加速下载链接（临时，90天有效）："
+          echo "${{ steps.artifact_url.outputs.prefixed_url }}"
