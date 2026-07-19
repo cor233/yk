@@ -18,19 +18,20 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 获取上游指定标签
+      - name: 获取上游所有标签
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git remote add upstream https://github.com/ingriddaleusag-dotcom/PickTV.git
-          git fetch upstream refs/tags/V1.0.0 refs/tags/V1.0.1 --tags --force
+          git fetch upstream --tags --force
 
-      - name: 同步指定标签
+      - name: 同步所有标签
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TARGET_REPO="${{ github.repository }}"
-          for tag in V1.0.0 V1.0.1; do
+
+          git tag | while read -r tag; do
             echo "=============================="
             echo "正在处理标签：$tag"
 
@@ -64,6 +65,7 @@ jobs:
 
             echo "正在下载并上传 $tag 的附件..."
             TEMP_DIR=$(mktemp -d)
+
             (
               cd "$TEMP_DIR" || exit
               if gh release download "$tag" -R "ingriddaleusag-dotcom/PickTV" --clobber 2>/dev/null; then
@@ -77,5 +79,6 @@ jobs:
                 echo "该标签没有附件。"
               fi
             )
+
             rm -rf "$TEMP_DIR"
           done
