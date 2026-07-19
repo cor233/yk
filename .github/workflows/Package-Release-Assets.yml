@@ -76,7 +76,7 @@ jobs:
         run: |
           artifact_url=$(gh api -X GET /repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --jq '.artifacts[] | select(.name=="release-package") | .archive_download_url')
           echo "artifact_url=$artifact_url" >> $GITHUB_OUTPUT
-          echo "prefixed_url=https://gh.xxooo.cf/${artifact_url#https://}" >> $GITHUB_OUTPUT
+          echo "prefixed_url=https://gh.xxooo.cf/$artifact_url" >> $GITHUB_OUTPUT
 
       - name: 显示加速下载链接
         run: |
